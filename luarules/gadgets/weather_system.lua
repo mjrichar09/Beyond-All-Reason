@@ -134,9 +134,6 @@ local function TriggerWeatherEvent()
 		" (Intensity: " .. string.format("%.2f", weatherState.eventData.weatherIntensity) .. 
 		") | Next event in ~" .. 
 		math.floor((weatherState.nextEventFrame - currentFrame) / GetGameSpeed()) .. " seconds")
-	
-	-- Call gadget handler for other systems to respond
-	gadgetHandler:GameFrame(currentFrame)
 end
 
 ---============================================================================
