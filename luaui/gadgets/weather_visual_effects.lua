@@ -45,15 +45,19 @@ local visualState = {
 	activeParticles = {},
 	particleCount = 0,
 	weatherStartFrame = 0,
+	weatherSystem = nil,           -- Cache for weather system gadget
 }
 
 ---============================================================================
 --- Utility Functions
 ---============================================================================
 
---- Get synced weather system gadget
+--- Get synced weather system gadget (lazy load and cache)
 local function GetWeatherSystem()
-	return gadgetHandler:FindGadget("Weather System")
+	if visualState.weatherSystem == nil then
+		visualState.weatherSystem = gadgetHandler:FindGadget("Weather System")
+	end
+	return visualState.weatherSystem
 end
 
 --- Convert table iterator to array

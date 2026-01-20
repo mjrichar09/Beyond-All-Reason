@@ -42,15 +42,19 @@ local effectState = {
 	weatherIntensity = 0,
 	lastWeatherFrame = 0,
 	affectedUnits = {},            -- Track which units are affected
+	weatherSystem = nil,           -- Cache for weather system gadget
 }
 
 ---============================================================================
 --- Helper Functions
 ---============================================================================
 
---- Get synced weather system gadget
+--- Get synced weather system gadget (lazy load and cache)
 local function GetWeatherSystem()
-	return gadgetHandler:FindGadget("Weather System")
+	if effectState.weatherSystem == nil then
+		effectState.weatherSystem = gadgetHandler:FindGadget("Weather System")
+	end
+	return effectState.weatherSystem
 end
 
 --- Update current weather from synced system
