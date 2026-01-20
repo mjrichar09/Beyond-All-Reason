@@ -17,8 +17,9 @@ weatherUtils.WEATHER_TYPES = {
 		intensity = 0.3,
 		effects = {
 			unitSpeedMult = 0.95,
-			visionMult = 0.98,
-			metalIncMult = 0.98,
+			visionMult = 0.95,
+			metalIncMult = 0.95,
+			solarEnergyMult = 0.8,
 		},
 		visual = {
 			particleIntensity = 0.3,
@@ -27,13 +28,14 @@ weatherUtils.WEATHER_TYPES = {
 	},
 	heavy_rain = {
 		name = "Heavy Rain",
-		description = "Heavy precipitation - significantly reduces unit speed, vision, and production",
+		description = "Heavy precipitation - significantly reduces unit speed, vision, radar and production",
 		intensity = 0.8,
 		effects = {
 			unitSpeedMult = 0.85,
-			visionMult = 0.90,
+			visionMult = 0.80,
+			radarMult = 0.85,
 			metalIncMult = 0.85,
-			energyIncMult = 0.95,
+			solarEnergyMult = 0.4,
 		},
 		visual = {
 			particleIntensity = 0.8,
@@ -48,6 +50,7 @@ weatherUtils.WEATHER_TYPES = {
 			visionMult = 0.70,
 			radarMult = 0.75,
 			unitSpeedMult = 0.98,
+			solarEnergyMult = 0.2,
 		},
 		visual = {
 			particleIntensity = 0.2,
@@ -56,15 +59,17 @@ weatherUtils.WEATHER_TYPES = {
 	},
 	dust_storm = {
 		name = "Dust Storm",
-		description = "Severe dust storm - reduces vision and increases unit damage",
+		description = "Severe dust storm - disables radar, reduces vision and increases unit damage",
 		intensity = 0.7,
 		effects = {
 			visionMult = 0.75,
+			radarMult = 0.00,
 			unitDamageTaken = 1.05,
 			unitSpeedMult = 0.90,
+			solarEnergyMult = 0.2,
 		},
 		visual = {
-			particleIntensity = 0.7,
+			particleIntensity = 0.85,
 			fogDensity = 0.2,
 		},
 	},
@@ -167,7 +172,7 @@ end
 function weatherUtils.AffectsProduction(weatherType)
 	local data = weatherUtils.GetWeatherData(weatherType)
 	if data and data.effects then
-		return (data.effects.metalIncMult ~= nil or data.effects.energyIncMult ~= nil)
+		return (data.effects.metalIncMult ~= nil or data.effects.energyIncMult ~= nil or data.effects.solarEnergyMult ~= nil or data.effects.windEnergyBoost ~= nil)
 	end
 	return false
 end
