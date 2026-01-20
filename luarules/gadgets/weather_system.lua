@@ -34,7 +34,7 @@ local CONFIG = {
 	GAME_SPEED = 30,              -- Default game speed (frames per second)
 	MIN_INTERVAL = 120,           -- Minimum seconds between weather events
 	MAX_INTERVAL = 900,           -- Maximum seconds between weather events (15 minutes)
-	INITIAL_DELAY = 120,          -- Initial delay at game start (2 minutes)
+	INITIAL_DELAY = 60,           -- Initial delay at game start (1 minute)
 	UPDATE_INTERVAL = 10,         -- Check for weather trigger every N frames
 }
 
