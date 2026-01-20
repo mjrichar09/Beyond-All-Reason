@@ -129,7 +129,6 @@ end
 
 function gadget:Initialize()
 	Spring.Echo("[Weather Visuals] Client-side weather visualization initialized")
-	UpdateWeatherInfo()
 end
 
 local frameCounter = 0

@@ -209,7 +209,6 @@ end
 
 function gadget:Initialize()
 	Spring.Echo("[Weather Effects] Synced weather gameplay effects initialized")
-	UpdateWeatherState()
 end
 
 local frameCounter = 0
