@@ -2,7 +2,7 @@
 
 ## Overview
 
-The weather system provides a global, synchronized weather event trigger with both cosmetic and functional effects. Weather events occur at random intervals between 2-15 minutes, with the initial event occurring soon after game start.
+The weather system provides a global, synchronized weather event trigger with both cosmetic and functional effects. Weather events occur at random intervals between 2-15 minutes after the first event. The first weather event is triggered at a configurable delay from game start (default: 60 seconds / 1 minute).
 
 ## System Architecture
 
@@ -14,16 +14,21 @@ The weather system provides a global, synchronized weather event trigger with bo
 - **Responsibility:**
   - Track and trigger weather events at random intervals
   - Select random weather type when triggered
-  - Manage global weather state visible to all players
-  - Provide API for other systems to query weather state
+  - Broadcast global weather state to other gadgets via GameRulesParams
+  - Manage synced weather state visible to all players
 
 - **Key Functions:**
   ```lua
-  GetWeatherState()           -- Get full current weather state
-  GetCurrentWeather()         -- Get current weather type
-  GetWeatherIntensity()       -- Get intensity (0.0-1.0)
-  GetTimeUntilNextEvent()     -- Seconds until next weather event
-  GetAvailableWeatherEvents() -- List of possible weather types
+  GetWeatherState()           -- Get full current weather state (gadget API)
+  GetCurrentWeather()         -- Get current weather type (gadget API)
+  GetWeatherIntensity()       -- Get intensity 0.0-1.0 (gadget API)
+  GetTimeUntilNextEvent()     -- Seconds until next weather event (gadget API)
+  GetAvailableWeatherEvents() -- List of possible weather types (gadget API)
+  
+  -- State is also broadcast via GameRulesParams:
+  -- Spring.GetGameRulesParam("weather_current")   -- Current weather type
+  -- Spring.GetGameRulesParam("weather_intensity") -- Current intensity (0.0-1.0)
+  -- Spring.GetGameRulesParam("weather_frame")     -- Frame of last event
   ```
 
 - **Weather Event Types:**
@@ -60,10 +65,14 @@ The weather system provides a global, synchronized weather event trigger with bo
   AffectsMovement(weatherType)
   AffectsProduction(weatherType)
   ```
+Query weather state from GameRulesParams (broadcast by weather system)
+  - Apply modifiers to units, resources, and terrain
+  - Calculate and apply environmental damage
+  - Coordinate effects across all players
 
-#### 3. **Weather Gameplay Effects** (`luarules/gadgets/weather_effects.lua`)
-**Synced Code** - Applies functional effects to gameplay
-
+- **Integration Method:**
+  - Reads `weather_current`, `weather_intensity`, and `weather_frame` from GameRulesParams
+  - No direct dependency on weather system gadget (decoupled via GameRulesParams)
 - **Responsibility:**
   - Monitor weather state from weather system
   - Apply modifiers to units, resources, and terrain
@@ -72,10 +81,14 @@ The weather system provides a global, synchronized weather event trigger with bo
 
 - **Effects Applied:**
   - Unit movement speed modifiers
-  - Vision and radar range adjustments
-  - Resource production modifiers
-  - Environmental damage
-  - Terrain traversability changes
+  - Visionweather state from GameRulesParams (broadcast by weather system)
+  - Render particle effects locally
+  - Apply visual overlays and color tints
+  - Handle weather-specific animations
+
+- **Integration Method:**
+  - Reads `weather_current` and `weather_intensity` from GameRulesParams
+  - No direct dependency on weather system gadget (decoupled via GameRulesParams)
 
 #### 4. **Weather Visual Effects** (`luaui/gadgets/weather_visual_effects.lua`)
 **Unsynced Code** - Client-side cosmetic rendering
@@ -114,9 +127,9 @@ Trigger Weather Event:
 
 ### Timing Constants
 
-- **MIN_INTERVAL:** 120 seconds (2 minutes)
-- **MAX_INTERVAL:** 900 seconds (15 minutes)
-- **INITIAL_DELAY:** 120 seconds (2 minutes at game start)
+- **MIN_INTERVAL:** 120 seconds (2 minutes) - minimum between weather events
+- **MAX_INTERVAL:** 900 seconds (15 minutes) - maximum between weather events
+- **INITIAL_DELAY:** 60 seconds (1 minute) - initial delay at game start
 - **GAME_SPEED:** Default 30 frames/second
 - **UPDATE_INTERVAL:** Check every 10 frames (0.33 seconds)
 
@@ -184,12 +197,17 @@ finalSpeed = baseSpeed * speedMult * intensityMult
 
 ### For Other Gadgets
 
-Query weather state:
+Query weather state via GameRulesParams (decoupled, no gadgetHandler required):
+```lua
+local currentWeather = Spring.GetGameRulesParam("weather_current") or "clear_skies"
+local intensity = Spring.GetGameRulesParam("weather_intensity") or 0
+local weatherFrame = Spring.GetGameRulesParam("weather_frame") or 0
+```
+
+Or use the gadget API if you have a reference:
 ```lua
 local weatherSystem = gadgetHandler:FindGadget("Weather System")
 local state = weatherSystem:GetWeatherState()
-local currentWeather = weatherSystem:GetCurrentWeather()
-local intensity = weatherSystem:GetWeatherIntensity()
 ```
 
 ### For Unit Behavior
@@ -224,9 +242,9 @@ Edit `luarules/gadgets.lua` to enable/disable individual gadgets:
 Modify `CONFIG` in `weather_system.lua`:
 ```lua
 local CONFIG = {
+  INITIAL_DELAY = 60,    -- Seconds until first weather event
   MIN_INTERVAL = 120,    -- Minimum seconds between events
   MAX_INTERVAL = 900,    -- Maximum seconds between events
-  INITIAL_DELAY = 120,   -- Initial delay at game start
   GAME_SPEED = 30,       -- Frames per second
 }
 ```
