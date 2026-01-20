@@ -22,7 +22,7 @@ if gadgetHandler:IsSyncedCode() then
 	return false
 end
 
-VFS.Include('common/weather_utils.lua')
+local weatherUtils = VFS.Include('common/weather_utils.lua')
 
 ---============================================================================
 --- Configuration
