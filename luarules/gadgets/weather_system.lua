@@ -130,6 +130,11 @@ local function TriggerWeatherEvent()
 		weatherIntensity = 0.5 + math.random() * 0.5,  -- Random intensity 0.5-1.0
 	}
 	
+	-- Broadcast weather state via game rules params so other gadgets can read it
+	Spring.SetGameRulesParam("weather_current", newWeather)
+	Spring.SetGameRulesParam("weather_intensity", weatherState.eventData.weatherIntensity)
+	Spring.SetGameRulesParam("weather_frame", currentFrame)
+	
 	Spring.Echo("[Weather] Event triggered: " .. newWeather .. 
 		" (Intensity: " .. string.format("%.2f", weatherState.eventData.weatherIntensity) .. 
 		") | Next event in ~" .. 

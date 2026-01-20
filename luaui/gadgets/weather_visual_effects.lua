@@ -45,19 +45,22 @@ local visualState = {
 	activeParticles = {},
 	particleCount = 0,
 	weatherStartFrame = 0,
-	weatherSystem = nil,           -- Cache for weather system gadget
 }
 
 ---============================================================================
 --- Utility Functions
 ---============================================================================
 
---- Get synced weather system gadget (lazy load and cache)
-local function GetWeatherSystem()
-	if visualState.weatherSystem == nil then
-		visualState.weatherSystem = gadgetHandler:FindGadget("Weather System")
-	end
-	return visualState.weatherSystem
+--- Get current weather from game rules (broadcast by weather system)
+local function GetCurrentWeather()
+	local weather = Spring.GetGameRulesParam("weather_current")
+	return weather or "clear_skies"
+end
+
+--- Get current weather intensity from game rules
+local function GetCurrentWeatherIntensity()
+	local intensity = Spring.GetGameRulesParam("weather_intensity")
+	return intensity or 0
 end
 
 --- Convert table iterator to array
@@ -90,17 +93,8 @@ end
 
 --- Update weather information from synced system
 local function UpdateWeatherInfo()
-	local weatherSys = GetWeatherSystem()
-	if not weatherSys then
-		return
-	end
-	
-	local state = weatherSys:GetWeatherState()
-	if state then
-		visualState.currentWeather = state.currentWeather
-		visualState.weatherIntensity = state.eventData.weatherIntensity or 0
-		visualState.weatherStartFrame = state.lastEventFrame
-	end
+	visualState.currentWeather = GetCurrentWeather()
+	visualState.weatherIntensity = GetCurrentWeatherIntensity()
 end
 
 --- Generate visual effect for current weather

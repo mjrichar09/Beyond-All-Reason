@@ -42,34 +42,28 @@ local effectState = {
 	weatherIntensity = 0,
 	lastWeatherFrame = 0,
 	affectedUnits = {},            -- Track which units are affected
-	weatherSystem = nil,           -- Cache for weather system gadget
 }
 
 ---============================================================================
 --- Helper Functions
 ---============================================================================
 
---- Get synced weather system gadget (lazy load and cache)
-local function GetWeatherSystem()
-	if effectState.weatherSystem == nil then
-		effectState.weatherSystem = gadgetHandler:FindGadget("Weather System")
-	end
-	return effectState.weatherSystem
+--- Get current weather from game rules (broadcast by weather system)
+local function GetCurrentWeather()
+	local weather = Spring.GetGameRulesParam("weather_current")
+	return weather or "clear_skies"
+end
+
+--- Get current weather intensity from game rules
+local function GetCurrentWeatherIntensity()
+	local intensity = Spring.GetGameRulesParam("weather_intensity")
+	return intensity or 0
 end
 
 --- Update current weather from synced system
 local function UpdateWeatherState()
-	local weatherSys = GetWeatherSystem()
-	if not weatherSys then
-		return
-	end
-	
-	local state = weatherSys:GetWeatherState()
-	if state then
-		effectState.currentWeather = state.currentWeather
-		effectState.weatherIntensity = state.eventData.weatherIntensity or 0
-		effectState.lastWeatherFrame = state.lastEventFrame
-	end
+	effectState.currentWeather = GetCurrentWeather()
+	effectState.weatherIntensity = GetCurrentWeatherIntensity()
 end
 
 --- Get weather data
