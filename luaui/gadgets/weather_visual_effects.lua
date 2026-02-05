@@ -261,18 +261,25 @@ function gadget:GameFrame(frameNum)
 			" | Intensity: " .. string.format("%.2f", visualState.weatherIntensity) ..
 			" | Particles: " .. #visualState.activeParticles .. "/" .. visualState.particleCount)
 	end
+	
+	-- Debug: Log every frame if we have particles
+	if #visualState.activeParticles > 0 then
+		if frameNum % 30 == 0 then  -- Every second at 30fps
+			Spring.Echo("[Weather Visuals DEBUG] Frame " .. frameNum .. ": " .. #visualState.activeParticles .. " particles active")
+		end
+	end
 end
 
---- Draw UI information about current weather (optional debug)
-function gadget:DrawScreenEffects()
+--- Draw UI information about current weather (screen-space overlay)
+function gadget:DrawScreen()
 	if CONFIG.DEBUG then
-		Spring.Echo("[Weather Visuals DEBUG] DrawScreenEffects called. Overlay A=" .. (visualState.overlay and visualState.overlay.a or "nil"))
+		Spring.Echo("[Weather Visuals DEBUG] DrawScreen called")
 	end
 	
 	-- Draw weather overlay if there's an active effect
 	if visualState.overlay and visualState.overlay.a > 0 then
 		if CONFIG.DEBUG then
-			Spring.Echo("[Weather Visuals DEBUG] Drawing overlay: R=" .. visualState.overlay.r .. " G=" .. visualState.overlay.g .. " B=" .. visualState.overlay.b .. " A=" .. visualState.overlay.a)
+			Spring.Echo("[Weather Visuals DEBUG] Drawing overlay: A=" .. visualState.overlay.a)
 		end
 		
 		gl.Color(
@@ -294,10 +301,10 @@ function gadget:DrawScreenEffects()
 	end
 end
 
---- Draw world-space effects (particles, etc)
-function gadget:DrawWorldPreUnit()
+--- Draw world-space effects (particles)
+function gadget:DrawWorld()
 	if CONFIG.DEBUG then
-		Spring.Echo("[Weather Visuals DEBUG] DrawWorldPreUnit called. Weather=" .. visualState.currentWeather .. " Particles=" .. #visualState.activeParticles)
+		Spring.Echo("[Weather Visuals DEBUG] DrawWorld called. Weather=" .. visualState.currentWeather .. " Particles=" .. #visualState.activeParticles)
 	end
 	
 	if visualState.currentWeather == "clear_skies" or #visualState.activeParticles == 0 then
