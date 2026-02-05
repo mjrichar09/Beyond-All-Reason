@@ -45,6 +45,9 @@ local visualState = {
 	activeParticles = {},
 	particleCount = 0,
 	weatherStartFrame = 0,
+	lastWeatherFrame = 0,
+	lastWeatherType = "clear_skies",
+	overlay = {r = 1.0, g = 1.0, b = 1.0, a = 0.0},
 }
 
 ---============================================================================
@@ -93,7 +96,18 @@ end
 
 --- Update weather information from synced system
 local function UpdateWeatherInfo()
-	visualState.currentWeather = GetCurrentWeather()
+	local newWeather = GetCurrentWeather()
+	
+	-- Detect weather change and reset particles
+	if newWeather ~= visualState.lastWeatherType then
+		visualState.lastWeatherFrame = Spring.GetGameFrame()
+		visualState.lastWeatherType = newWeather
+		visualState.activeParticles = {}
+		visualState.weatherStartFrame = Spring.GetGameFrame()
+		Spring.Echo("[Weather Visuals] Weather changed to: " .. newWeather)
+	end
+	
+	visualState.currentWeather = newWeather
 	visualState.weatherIntensity = GetCurrentWeatherIntensity()
 end
 
@@ -172,10 +186,13 @@ local function GenerateWeatherParticles()
 		visualState.weatherStartFrame = Spring.GetGameFrame()
 	end
 	
-	-- Add new particles periodically
-	if (Spring.GetGameFrame() - visualState.weatherStartFrame) % 5 == 0 then
+	-- Add new particles more frequently
+	local currentFrame = Spring.GetGameFrame()
+	local framesSinceStart = currentFrame - visualState.weatherStartFrame
+	
+	if framesSinceStart % 2 == 0 then  -- Spawn every 2 frames instead of 5
 		local bounds = GetMapBounds()
-		local particleToAdd = math.ceil(visualState.particleCount / 10)
+		local particleToAdd = math.ceil(visualState.particleCount / 5)  -- Add 1/5 per spawn instead of 1/10
 		
 		for i = 1, particleToAdd do
 			if #visualState.activeParticles < visualState.particleCount then
@@ -223,6 +240,11 @@ function gadget:GameFrame(frameNum)
 		UpdateWeatherVisuals()
 		ApplyWeatherOverlay()
 		GenerateWeatherParticles()
+		
+		-- Debug logging
+		Spring.Echo("[Weather Visuals] Weather: " .. visualState.currentWeather .. 
+			" | Intensity: " .. string.format("%.2f", visualState.weatherIntensity) ..
+			" | Particles: " .. #visualState.activeParticles .. "/" .. visualState.particleCount)
 	end
 end
 
