@@ -32,6 +32,7 @@ local CONFIG = {
 	UPDATE_INTERVAL = 5,           -- Update weather effects every N frames
 	PARTICLE_SCALE = 1.0,          -- Scale factor for all particle effects
 	MAX_PARTICLES = 5000,          -- Maximum concurrent particles
+	DEBUG = true,                  -- Enable debug logging
 }
 
 ---============================================================================
@@ -171,12 +172,22 @@ end
 --- Generate particles for weather visualization
 local function GenerateWeatherParticles()
 	if visualState.particleCount == 0 then
+		if CONFIG.DEBUG then
+			Spring.Echo("[Weather Visuals DEBUG] GenerateWeatherParticles: particleCount is 0, returning")
+		end
 		return
 	end
 	
 	local weatherData = weatherUtils.GetWeatherData(visualState.currentWeather)
 	if not weatherData then
+		if CONFIG.DEBUG then
+			Spring.Echo("[Weather Visuals DEBUG] GenerateWeatherParticles: No weather data for " .. visualState.currentWeather)
+		end
 		return
+	end
+	
+	if CONFIG.DEBUG then
+		Spring.Echo("[Weather Visuals DEBUG] GenerateWeatherParticles: Generating particles, target=" .. visualState.particleCount .. ", current=" .. #visualState.activeParticles)
 	end
 	
 	-- Clear old particles if we're switching weather
@@ -193,6 +204,10 @@ local function GenerateWeatherParticles()
 	if framesSinceStart % 2 == 0 then  -- Spawn every 2 frames instead of 5
 		local bounds = GetMapBounds()
 		local particleToAdd = math.ceil(visualState.particleCount / 5)  -- Add 1/5 per spawn instead of 1/10
+		
+		if CONFIG.DEBUG and framesSinceStart % 10 == 0 then
+			Spring.Echo("[Weather Visuals DEBUG] Spawning " .. particleToAdd .. " particles (frame " .. framesSinceStart .. ")")
+		end
 		
 		for i = 1, particleToAdd do
 			if #visualState.activeParticles < visualState.particleCount then
@@ -250,8 +265,16 @@ end
 
 --- Draw UI information about current weather (optional debug)
 function gadget:DrawScreenEffects()
+	if CONFIG.DEBUG then
+		Spring.Echo("[Weather Visuals DEBUG] DrawScreenEffects called. Overlay A=" .. (visualState.overlay and visualState.overlay.a or "nil"))
+	end
+	
 	-- Draw weather overlay if there's an active effect
 	if visualState.overlay and visualState.overlay.a > 0 then
+		if CONFIG.DEBUG then
+			Spring.Echo("[Weather Visuals DEBUG] Drawing overlay: R=" .. visualState.overlay.r .. " G=" .. visualState.overlay.g .. " B=" .. visualState.overlay.b .. " A=" .. visualState.overlay.a)
+		end
+		
 		gl.Color(
 			visualState.overlay.r,
 			visualState.overlay.g,
@@ -273,8 +296,19 @@ end
 
 --- Draw world-space effects (particles, etc)
 function gadget:DrawWorldPreUnit()
+	if CONFIG.DEBUG then
+		Spring.Echo("[Weather Visuals DEBUG] DrawWorldPreUnit called. Weather=" .. visualState.currentWeather .. " Particles=" .. #visualState.activeParticles)
+	end
+	
 	if visualState.currentWeather == "clear_skies" or #visualState.activeParticles == 0 then
+		if CONFIG.DEBUG and #visualState.activeParticles > 0 then
+			Spring.Echo("[Weather Visuals DEBUG] Not drawing: clear_skies or no particles")
+		end
 		return
+	end
+	
+	if CONFIG.DEBUG then
+		Spring.Echo("[Weather Visuals DEBUG] Drawing " .. #visualState.activeParticles .. " particles")
 	end
 	
 	-- Enable additive blending for particles
