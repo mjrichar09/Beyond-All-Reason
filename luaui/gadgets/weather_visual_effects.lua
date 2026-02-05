@@ -108,12 +108,99 @@ local function UpdateWeatherVisuals()
 	
 	-- Update particle intensity if applicable
 	if visual.particleIntensity > 0 then
-		-- Particles would be rendered here
-		-- For now, this is a placeholder for CEG integration
-		local particleCount = math.floor(visual.particleIntensity * CONFIG.MAX_PARTICLES)
-		visualState.particleCount = particleCount
+		-- Calculate particle count based on intensity and visual intensity
+		local particleCount = math.floor(
+			visual.particleIntensity * visualState.weatherIntensity * CONFIG.MAX_PARTICLES
+		)
+		visualState.particleCount = math.min(particleCount, CONFIG.MAX_PARTICLES)
 	else
 		visualState.particleCount = 0
+	end
+end
+
+--- Get CEG (Custom Emitter Group) file path for weather type
+local function GetWeatherCEGPath(weatherType)
+	local cegPaths = {
+		light_rain = "projectiles/weather/light_rain.lua",
+		heavy_rain = "projectiles/weather/heavy_rain.lua",
+		fog = "projectiles/weather/fog.lua",
+		dust_storm = "projectiles/weather/dust_storm.lua",
+		wind_gust = "projectiles/weather/wind_gust.lua",
+		clear_skies = nil,
+	}
+	return cegPaths[weatherType]
+end
+
+--- Apply visual overlay (fog, color tint, etc)
+local function ApplyWeatherOverlay()
+	local overlay = GetWeatherColorOverlay()
+	
+	-- Store overlay values for use in draw functions
+	visualState.overlay = {
+		r = overlay[1],
+		g = overlay[2],
+		b = overlay[3],
+		a = overlay[4],
+	}
+end
+
+--- Get map boundaries
+local function GetMapBounds()
+	return {
+		x1 = 0,
+		z1 = 0,
+		x2 = Game.mapSizeX,
+		z2 = Game.mapSizeZ,
+	}
+end
+
+--- Generate particles for weather visualization
+local function GenerateWeatherParticles()
+	if visualState.particleCount == 0 then
+		return
+	end
+	
+	local weatherData = weatherUtils.GetWeatherData(visualState.currentWeather)
+	if not weatherData then
+		return
+	end
+	
+	-- Clear old particles if we're switching weather
+	if visualState.lastWeatherFrame == nil or 
+	   visualState.lastWeatherFrame < Spring.GetGameFrame() - 30 then
+		visualState.activeParticles = {}
+		visualState.weatherStartFrame = Spring.GetGameFrame()
+	end
+	
+	-- Add new particles periodically
+	if (Spring.GetGameFrame() - visualState.weatherStartFrame) % 5 == 0 then
+		local bounds = GetMapBounds()
+		local particleToAdd = math.ceil(visualState.particleCount / 10)
+		
+		for i = 1, particleToAdd do
+			if #visualState.activeParticles < visualState.particleCount then
+				table.insert(visualState.activeParticles, {
+					x = math.random(bounds.x1, bounds.x2),
+					y = math.random(500, 2000),  -- Random height
+					z = math.random(bounds.z1, bounds.z2),
+					life = 60 + math.random(0, 60),
+					age = 0,
+				})
+			end
+		end
+	end
+	
+	-- Age and remove expired particles
+	local i = 1
+	while i <= #visualState.activeParticles do
+		local particle = visualState.activeParticles[i]
+		particle.age = particle.age + 1
+		
+		if particle.age >= particle.life then
+			table.remove(visualState.activeParticles, i)
+		else
+			i = i + 1
+		end
 	end
 end
 
@@ -131,21 +218,74 @@ function gadget:GameFrame(frameNum)
 	
 	-- Update weather info periodically
 	if frameCounter % CONFIG.UPDATE_INTERVAL == 0 then
+		visualState.lastUpdateFrame = frameNum
 		UpdateWeatherInfo()
 		UpdateWeatherVisuals()
+		ApplyWeatherOverlay()
+		GenerateWeatherParticles()
 	end
 end
 
 --- Draw UI information about current weather (optional debug)
 function gadget:DrawScreenEffects()
-	-- This is called for rendering screen-space effects
-	-- Could be used for HUD elements showing current weather
+	-- Draw weather overlay if there's an active effect
+	if visualState.overlay and visualState.overlay.a > 0 then
+		gl.Color(
+			visualState.overlay.r,
+			visualState.overlay.g,
+			visualState.overlay.b,
+			visualState.overlay.a
+		)
+		
+		-- Draw fullscreen quad for color overlay
+		gl.Begin(gl.QUADS)
+		gl.Vertex(0, 0)
+		gl.Vertex(Game.screenSizeX, 0)
+		gl.Vertex(Game.screenSizeX, Game.screenSizeY)
+		gl.Vertex(0, Game.screenSizeY)
+		gl.End()
+		
+		gl.Color(1, 1, 1, 1)  -- Reset color
+	end
 end
 
 --- Draw world-space effects (particles, etc)
 function gadget:DrawWorldPreUnit()
-	-- This is where particle effects would be rendered
-	-- Integration with Spring's particle system and CEGs
+	if visualState.currentWeather == "clear_skies" or #visualState.activeParticles == 0 then
+		return
+	end
+	
+	-- Enable additive blending for particles
+	gl.Blending(GL.SRC_ALPHA, GL.ONE)
+	gl.Fog(false)
+	
+	local colorTint = weatherUtils.GetWeatherColorTint(visualState.currentWeather)
+	
+	-- Draw particles as simple quads
+	for _, particle in ipairs(visualState.activeParticles) do
+		local opacity = 1.0 - (particle.age / particle.life)
+		local size = 10 * opacity
+		
+		gl.Color(colorTint[1], colorTint[2], colorTint[3], opacity * 0.5)
+		
+		-- Draw particle as small quad
+		gl.PushMatrix()
+		gl.Translate(particle.x, particle.y, particle.z)
+		
+		gl.Begin(gl.QUADS)
+		gl.Vertex(-size, -size, 0)
+		gl.Vertex(size, -size, 0)
+		gl.Vertex(size, size, 0)
+		gl.Vertex(-size, size, 0)
+		gl.End()
+		
+		gl.PopMatrix()
+	end
+	
+	-- Restore rendering state
+	gl.Blending(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA)
+	gl.Fog(true)
+	gl.Color(1, 1, 1, 1)
 end
 
 function gadget:Shutdown()

@@ -83,21 +83,17 @@ local function ApplyUnitSpeedModifier(unitID, unitDefID, weatherData)
 		return
 	end
 	
-	-- Ground unit speed modifier
-	if effects.unitSpeedMult and unitDef.speed then
-		local speedMult = effects.unitSpeedMult
-		local maxSpeed = unitDef.maxVelocity or (unitDef.speed * 1.05)
-		
-		-- This would be applied through unit script or custom weapon behavior
-		-- For now, we track it in custom parameters
-		if not Spring.UnitScript then
-			return
-		end
+	-- Calculate the speed modifier based on unit type
+	local speedMult = 1.0
+	if unitDef.canfly then
+		speedMult = effects.airUnitSpeedMult or 1.0
+	else
+		speedMult = effects.unitSpeedMult or 1.0
 	end
 	
-	-- Air unit speed modifier
-	if effects.airUnitSpeedMult and unitDef.canfly then
-		-- Air units could be boosted or slowed
+	-- Apply modifier through game rules param
+	if speedMult ~= 1.0 then
+		weatherUtils.SetUnitWeatherModifier(unitID, "unitSpeedMult", speedMult)
 	end
 end
 
@@ -107,11 +103,10 @@ local function ApplyVisionModifier(unitID, unitDefID, weatherData)
 		return
 	end
 	
-	-- Vision modifiers could be applied through:
-	-- 1. Modifying unit's line-of-sight range
-	-- 2. Affecting radar range
-	-- 3. Reducing sensor capabilities
-	-- This is handled through game state checks rather than direct modification
+	local visionMult = weatherData.effects.visionMult
+	if visionMult ~= 1.0 then
+		weatherUtils.SetUnitWeatherModifier(unitID, "visionMult", visionMult)
+	end
 end
 
 --- Apply damage modifier for environmental hazards
@@ -120,8 +115,10 @@ local function ApplyEnvironmentalDamage(unitID, unitDefID, weatherData)
 		return
 	end
 	
-	-- Environmental damage (e.g., from dust storms)
-	-- This would require custom implementation or unit script modifications
+	local damageMult = weatherData.effects.unitDamageTaken
+	if damageMult ~= 1.0 then
+		weatherUtils.SetUnitWeatherModifier(unitID, "unitDamageTaken", damageMult)
+	end
 end
 
 ---============================================================================
@@ -160,22 +157,25 @@ local function ApplyWeatherEffectsToResources()
 	end
 	
 	local effects = weatherData.effects
+	local intensityFactor = effectState.weatherIntensity
 	
-	-- Metal income modifier
+	-- Store resource modifiers in game rules params for economy system to read
 	if effects.metalIncMult and effects.metalIncMult ~= 1.0 then
-		-- Reduces metal extraction from mex units in bad weather
-		-- This would be implemented through unit script modifications
+		Spring.SetGameRulesParam("weather_metalIncMult", effects.metalIncMult)
 	end
 	
-	-- Energy income modifier
 	if effects.energyIncMult and effects.energyIncMult ~= 1.0 then
-		-- Affects solar panels (negative) or wind generators (positive)
-		-- Implementation through unit attribute checks
+		Spring.SetGameRulesParam("weather_energyIncMult", effects.energyIncMult)
 	end
 	
-	-- Wind energy boost
-	if effects.windEnergyBoost then
-		-- Bonus to wind generators during wind gusts
+	-- Solar energy modifier (affects energy buildings)
+	if effects.solarEnergyMult and effects.solarEnergyMult ~= 1.0 then
+		Spring.SetGameRulesParam("weather_solarEnergyMult", effects.solarEnergyMult)
+	end
+	
+	-- Wind energy boost (affects wind generators)
+	if effects.windEnergyBoost and effects.windEnergyBoost ~= 1.0 then
+		Spring.SetGameRulesParam("weather_windEnergyBoost", effects.windEnergyBoost)
 	end
 end
 
@@ -190,11 +190,47 @@ local function ApplyTerrainEffects()
 		return
 	end
 	
-	-- Could modify:
-	-- - Pathfinding difficulty
-	-- - Water levels during rain
-	-- - Traversability of terrain
-	-- - Visibility fog
+	-- Store terrain modifiers in game rules for pathfinding/movement systems
+	if weatherData.effects.unitSpeedMult then
+		Spring.SetGameRulesParam("weather_terrainMovementMult", weatherData.effects.unitSpeedMult)
+	end
+	
+	-- Radar effects (dust storms disable radar)
+	if weatherData.effects.radarMult then
+		Spring.SetGameRulesParam("weather_radarMult", weatherData.effects.radarMult)
+	end
+	
+	-- Projectile deviation (wind affects accuracy)
+	if weatherData.effects.projectileDeviationMult then
+		Spring.SetGameRulesParam("weather_projectileDeviationMult", weatherData.effects.projectileDeviationMult)
+	end
+end
+
+---============================================================================
+--- Weather Damage System
+---============================================================================
+
+--- Apply weather-based damage to units
+local function ApplyWeatherDamage()
+	if effectState.currentWeather ~= "dust_storm" then
+		return
+	end
+	
+	-- Dust storm causes periodic damage to exposed units
+	local allUnits = Spring.GetAllUnits()
+	local damagePerFrame = 0.01 * effectState.weatherIntensity  -- Very small per-frame damage
+	
+	for _, unitID in ipairs(allUnits) do
+		if Spring.GetUnitCurrentBuildPower(unitID) == 0 then  -- Skip units being constructed
+			local currentHealth = Spring.GetUnitHealth(unitID)
+			if currentHealth and currentHealth > 0 then
+				local newHealth = currentHealth - damagePerFrame
+				if newHealth <= 0 then
+					Spring.DestroyUnit(unitID, false, false)
+				end
+			end
+		end
+	end
 end
 
 ---============================================================================
@@ -212,14 +248,28 @@ function gadget:GameFrame(frameNum)
 	-- Update weather state and apply effects at regular intervals
 	if frameCounter % CONFIG.UPDATE_INTERVAL == 0 then
 		UpdateWeatherState()
+		
+		-- Apply all weather effects
 		ApplyWeatherEffectsToUnits()
 		ApplyWeatherEffectsToResources()
 		ApplyTerrainEffects()
+		ApplyWeatherDamage()
 		
 		if CONFIG.EFFECT_DEBUG then
 			Spring.Echo("[Weather Effects] Applied effects for: " .. effectState.currentWeather ..
 				" (Intensity: " .. string.format("%.2f", effectState.weatherIntensity) .. ")")
 		end
+	end
+end
+
+--- Called when a unit is created
+function gadget:UnitCreated(unitID, unitDefID, teamID)
+	local weatherData = GetWeatherData()
+	if weatherData and weatherData.intensity > 0 then
+		-- Apply current weather effects to newly created units
+		ApplyUnitSpeedModifier(unitID, unitDefID, weatherData)
+		ApplyVisionModifier(unitID, unitDefID, weatherData)
+		ApplyEnvironmentalDamage(unitID, unitDefID, weatherData)
 	end
 end
 
@@ -245,17 +295,25 @@ function gadget:WeatherAffectsUnit(unitID, unitDefID)
 		return false
 	end
 	
-	-- All units are affected by movement weather
+	-- Check if any weather effects apply to this unit
 	if weatherUtils.AffectsMovement(effectState.currentWeather) then
 		return true
 	end
 	
-	-- All units are affected by vision weather
 	if weatherUtils.AffectsVision(effectState.currentWeather) then
 		return true
 	end
 	
+	if weatherData.effects.unitDamageTaken and weatherData.effects.unitDamageTaken > 1.0 then
+		return true
+	end
+	
 	return false
+end
+
+--- Get weather impact analysis for a unit type
+function gadget:GetWeatherImpactForUnit(unitDefID)
+	return weatherUtils.AnalyzeWeatherImpact(unitDefID)
 end
 
 function gadget:Shutdown()

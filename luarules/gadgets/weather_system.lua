@@ -26,6 +26,9 @@ if not gadgetHandler:IsSyncedCode() then
 	return false
 end
 
+-- Load weather utilities
+local weatherUtils = VFS.Include('common/weather_utils.lua')
+
 ---============================================================================
 --- Configuration
 ---============================================================================
@@ -34,8 +37,9 @@ local CONFIG = {
 	GAME_SPEED = 30,              -- Default game speed (frames per second)
 	MIN_INTERVAL = 120,           -- Minimum seconds between weather events
 	MAX_INTERVAL = 900,           -- Maximum seconds between weather events (15 minutes)
-	INITIAL_DELAY = 10,           -- Initial delay at game start (1 minute)
+	INITIAL_DELAY = 10,           -- Initial delay at game start (10 seconds)
 	UPDATE_INTERVAL = 10,         -- Check for weather trigger every N frames
+	DEBUG = false,                -- Log weather transitions
 }
 
 ---============================================================================
@@ -82,11 +86,6 @@ local function SecondsToFrames(seconds)
 	return math.floor(seconds * GetGameSpeed())
 end
 
---- Select a random weather event from available types
-local function SelectRandomWeatherEvent()
-	return WEATHER_EVENTS[math.random(1, #WEATHER_EVENTS)]
-end
-
 --- Calculate next trigger time with random interval
 local function CalculateNextEventTime()
 	local minFrames = SecondsToFrames(CONFIG.MIN_INTERVAL)
@@ -108,7 +107,10 @@ local function InitializeWeather()
 	weatherState.isWeatherActive = false
 	weatherState.eventData = {}
 	
-	Spring.Echo("[Weather] System initialized. First weather event in ~" .. 
+	-- Initialize game rules with clear weather
+	weatherUtils.SetCurrentWeather("clear_skies", 0)
+	
+	Spring.Echo("[Weather System] Initialized. First weather event in ~" .. 
 		CONFIG.INITIAL_DELAY .. " seconds")
 end
 
@@ -116,8 +118,10 @@ end
 local function TriggerWeatherEvent()
 	local currentFrame = GetCurrentFrame()
 	
-	-- Select random weather event
-	local newWeather = SelectRandomWeatherEvent()
+	-- Select random weather event from available types
+	local allWeatherTypes = weatherUtils.GetAllWeatherTypes()
+	local newWeather = allWeatherTypes[math.random(1, #allWeatherTypes)]
+	
 	weatherState.currentWeather = newWeather
 	weatherState.lastEventFrame = currentFrame
 	weatherState.nextEventFrame = CalculateNextEventTime()
@@ -130,15 +134,21 @@ local function TriggerWeatherEvent()
 		weatherIntensity = 0.5 + math.random() * 0.5,  -- Random intensity 0.5-1.0
 	}
 	
-	-- Broadcast weather state via game rules params so other gadgets can read it
-	Spring.SetGameRulesParam("weather_current", newWeather)
-	Spring.SetGameRulesParam("weather_intensity", weatherState.eventData.weatherIntensity)
+	-- Use weatherUtils to set current weather in game rules
+	weatherUtils.SetCurrentWeather(newWeather, weatherState.eventData.weatherIntensity)
+	
+	-- Also manually set game rules params for redundancy/compatibility
 	Spring.SetGameRulesParam("weather_frame", currentFrame)
 	
-	Spring.Echo("[Weather] Event triggered: " .. newWeather .. 
+	local logMsg = "[Weather System] Event triggered: " .. newWeather .. 
 		" (Intensity: " .. string.format("%.2f", weatherState.eventData.weatherIntensity) .. 
 		") | Next event in ~" .. 
-		math.floor((weatherState.nextEventFrame - currentFrame) / GetGameSpeed()) .. " seconds")
+		math.floor((weatherState.nextEventFrame - currentFrame) / GetGameSpeed()) .. " seconds"
+	
+	Spring.Echo(logMsg)
+	if CONFIG.DEBUG then
+		Spring.Echo(weatherUtils.FormatWeatherInfo())
+	end
 end
 
 ---============================================================================
@@ -174,7 +184,22 @@ end
 
 --- Get available weather event types
 function gadget:GetAvailableWeatherEvents()
-	return WEATHER_EVENTS
+	return weatherUtils.GetAllWeatherTypes()
+end
+
+--- Get weather data for current weather
+function gadget:GetCurrentWeatherData()
+	return weatherUtils.GetWeatherData(weatherState.currentWeather)
+end
+
+--- Check if current weather is severe
+function gadget:IsCurrentWeatherSevere()
+	return weatherUtils.IsSevereWeather(weatherState.currentWeather)
+end
+
+--- Get formatted weather information string
+function gadget:GetFormattedWeatherInfo()
+	return weatherUtils.FormatWeatherInfo()
 end
 
 ---============================================================================

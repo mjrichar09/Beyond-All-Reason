@@ -214,4 +214,259 @@ function weatherUtils.GetWeatherColorTint(weatherType)
 	return colorTints[weatherType] or colorTints.clear_skies
 end
 
+---============================================================================
+--- Unit State Management (Spring Integration)
+---============================================================================
+
+--- Store unit weather modifiers in custom parameters
+-- @param unitID: The unit to modify
+-- @param modifierKey: The effect type (e.g., "unitSpeedMult")
+-- @param value: The modifier value
+function weatherUtils.SetUnitWeatherModifier(unitID, modifierKey, value)
+	if not Spring or not Spring.SetUnitMetalStorage then
+		return false
+	end
+	
+	local unitDefID = Spring.GetUnitDefID(unitID)
+	if not unitDefID then
+		return false
+	end
+	
+	-- Store modifier in Spring's custom unit parameters
+	local paramKey = "weather_" .. modifierKey
+	Spring.SetGameRulesParam(unitID .. "_" .. paramKey, value)
+	return true
+end
+
+--- Get unit weather modifier from custom parameters
+-- @param unitID: The unit to query
+-- @param modifierKey: The effect type to check
+-- @return The modifier value, or 1.0 if not set
+function weatherUtils.GetUnitWeatherModifier(unitID, modifierKey)
+	if not Spring then
+		return 1.0
+	end
+	
+	local paramKey = unitID .. "_weather_" .. modifierKey
+	local value = Spring.GetGameRulesParam(paramKey)
+	return value or 1.0
+end
+
+---============================================================================
+--- Game Rules Parameter Management
+---============================================================================
+
+--- Set current weather in game rules (for all gadgets to read)
+-- @param weatherType: The weather type to set
+-- @param intensity: Optional intensity value (0.0-1.0)
+function weatherUtils.SetCurrentWeather(weatherType, intensity)
+	if not Spring or not Spring.SetGameRulesParam then
+		return false
+	end
+	
+	if not weatherUtils.WEATHER_TYPES[weatherType] then
+		return false
+	end
+	
+	intensity = math.clamp(intensity or 0.5, 0, 1)
+	Spring.SetGameRulesParam("weather_current", weatherType)
+	Spring.SetGameRulesParam("weather_intensity", intensity)
+	Spring.SetGameRulesParam("weather_frame", Spring.GetGameFrame())
+	return true
+end
+
+--- Get current weather from game rules
+-- @return weatherType, intensity
+function weatherUtils.GetCurrentWeather()
+	if not Spring or not Spring.GetGameRulesParam then
+		return "clear_skies", 0
+	end
+	
+	local weather = Spring.GetGameRulesParam("weather_current") or "clear_skies"
+	local intensity = Spring.GetGameRulesParam("weather_intensity") or 0
+	return weather, intensity
+end
+
+---============================================================================
+--- Effect Calculation Functions (Actual Application)
+---============================================================================
+
+--- Calculate modifier for a specific unit attribute
+-- @param unitID: The unit to calculate for
+-- @param attribute: The attribute type (e.g., "speed", "vision", "damage")
+-- @param baseValue: The base value before modifiers
+-- @return Modified value based on current weather
+function weatherUtils.CalculateModifiedAttribute(unitID, attribute, baseValue)
+	if not Spring then
+		return baseValue
+	end
+	
+	local currentWeather, intensity = weatherUtils.GetCurrentWeather()
+	local weatherData = weatherUtils.WEATHER_TYPES[currentWeather]
+	
+	if not weatherData or not weatherData.effects then
+		return baseValue
+	end
+	
+	local unitDefID = Spring.GetUnitDefID(unitID)
+	if not unitDefID then
+		return baseValue
+	end
+	
+	local unitDef = UnitDefs[unitDefID]
+	if not unitDef then
+		return baseValue
+	end
+	
+	local modifier = 1.0
+	local effects = weatherData.effects
+	
+	-- Map attribute names to effect keys
+	if attribute == "speed" then
+		if unitDef.canfly then
+			modifier = effects.airUnitSpeedMult or 1.0
+		else
+			modifier = effects.unitSpeedMult or 1.0
+		end
+	elseif attribute == "vision" then
+		modifier = effects.visionMult or 1.0
+	elseif attribute == "radar" then
+		modifier = effects.radarMult or 1.0
+	elseif attribute == "metalInc" then
+		modifier = effects.metalIncMult or 1.0
+	elseif attribute == "energyInc" then
+		modifier = effects.energyIncMult or 1.0
+	elseif attribute == "solarEnergy" then
+		modifier = effects.solarEnergyMult or 1.0
+	elseif attribute == "windEnergy" then
+		modifier = effects.windEnergyBoost or 1.0
+	elseif attribute == "damage" then
+		modifier = effects.unitDamageTaken or 1.0
+	elseif attribute == "projectileDeviation" then
+		modifier = effects.projectileDeviationMult or 1.0
+	end
+	
+	-- Apply intensity scaling (0.0 to 1.0)
+	-- Effects smoothly transition based on intensity
+	local intensityScale = intensity
+	return baseValue * (1 + (modifier - 1) * intensityScale)
+end
+
+--- Get all active modifiers for a unit
+-- @param unitID: The unit to query
+-- @return Table of all applicable modifiers
+function weatherUtils.GetUnitModifiers(unitID)
+	if not Spring then
+		return {}
+	end
+	
+	local currentWeather = weatherUtils.GetCurrentWeather()
+	local weatherData = weatherUtils.WEATHER_TYPES[currentWeather]
+	
+	if not weatherData or not weatherData.effects then
+		return {}
+	end
+	
+	local unitDefID = Spring.GetUnitDefID(unitID)
+	if not unitDefID then
+		return {}
+	end
+	
+	local modifiers = {}
+	for key, value in pairs(weatherData.effects) do
+		modifiers[key] = value
+	end
+	return modifiers
+end
+
+---============================================================================
+--- Weather Impact Analysis
+---============================================================================
+
+--- Get a summary of how current weather affects a specific unit type
+-- @param unitDefID: The unit def to analyze (or 0 for any unit)
+-- @return Table describing impacts
+function weatherUtils.AnalyzeWeatherImpact(unitDefID)
+	if not Spring then
+		return {}
+	end
+	
+	local currentWeather, intensity = weatherUtils.GetCurrentWeather()
+	local weatherData = weatherUtils.WEATHER_TYPES[currentWeather]
+	
+	if not weatherData then
+		return {}
+	end
+	
+	local impact = {
+		weatherType = currentWeather,
+		intensity = intensity,
+		severity = weatherData.intensity,
+		description = weatherData.description,
+		affectsMovement = weatherUtils.AffectsMovement(currentWeather),
+		affectsVision = weatherUtils.AffectsVision(currentWeather),
+		affectsProduction = weatherUtils.AffectsProduction(currentWeather),
+		isSevere = weatherUtils.IsSevereWeather(currentWeather),
+		effects = weatherData.effects,
+	}
+	
+	-- Add unit-specific impact analysis if unitDefID provided
+	if unitDefID and unitDefID > 0 then
+		local unitDef = UnitDefs[unitDefID]
+		if unitDef then
+			local speedMod = 1.0
+			if unitDef.canfly and weatherData.effects.airUnitSpeedMult then
+				speedMod = weatherData.effects.airUnitSpeedMult
+			elseif weatherData.effects.unitSpeedMult then
+				speedMod = weatherData.effects.unitSpeedMult
+			end
+			
+			impact.unitSpecific = {
+				unitName = unitDef.name,
+				unitType = unitDef.canfly and "air" or "ground",
+				speedModifier = speedMod,
+				visionModifier = weatherData.effects.visionMult or 1.0,
+				affectedBySolar = unitDef.needGeo and (weatherData.effects.solarEnergyMult or 1.0) or nil,
+			}
+		end
+	end
+	
+	return impact
+end
+
+---============================================================================
+--- Debug and Logging Functions
+---============================================================================
+
+--- Format weather information for display
+-- @return Formatted string describing current weather
+function weatherUtils.FormatWeatherInfo()
+	local weather, intensity = weatherUtils.GetCurrentWeather()
+	local weatherData = weatherUtils.WEATHER_TYPES[weather]
+	
+	if not weatherData then
+		return "Unknown weather state"
+	end
+	
+	return string.format(
+		"[%s] %s - Intensity: %.1f%% (Severity: %.0f%%)",
+		weather,
+		weatherData.name,
+		intensity * 100,
+		weatherData.intensity * 100
+	)
+end
+
+--- Log weather effect application (for debugging)
+-- @param unitID: Unit affected (or nil for system-wide)
+-- @param effect: Description of effect applied
+function weatherUtils.LogWeatherEffect(unitID, effect)
+	if not Spring then
+		return
+	end
+	
+	local prefix = unitID and string.format("[Weather Unit#%d]", unitID) or "[Weather System]"
+	Spring.Echo(prefix .. " " .. effect)
+end
+
 return weatherUtils
