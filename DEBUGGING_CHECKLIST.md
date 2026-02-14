@@ -38,7 +38,7 @@ local CONFIG = {
 
 1. Launch Spring Engine / BAR
 2. Start a new game (any map, singleplayer)
-3. Open console immediately (Ctrl+Enter)
+3. Open chat (press **Enter** to see messages, prefix commands with `/`)
 4. Let game load for ~2-3 seconds
 
 ---

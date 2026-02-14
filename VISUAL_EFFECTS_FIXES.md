@@ -224,11 +224,11 @@ local weatherUtils = VFS.Include('common/weather_utils.lua')
 1. **Apply Issue #2 changes** (fast weather cycling)
 2. **Apply Issue #1** (enable debug - should already be true)
 3. **Start a test game**
-4. **Open Spring console** (Ctrl+Enter)
-5. **Watch for messages:**
-   - Should see `[Weather System]` messages starting ~2 seconds in
-   - Should see `[Weather Visuals]` messages
-   - With Issue #2 changes, weather should change every 3-5 seconds
+4. **Open chat** (press **Enter**) and look for `[Weather System]` and `[Weather Visuals]` messages
+5. **Run commands** with `/` prefix to test:
+   - `/setgamerule weather_current heavy_rain`
+   - `/setgamerule weather_intensity 0.9`
+6. **With Issue #2 changes, weather should change every 3-5 seconds**
 6. **If still no particles:**
    - Apply Issue #4 changes (red square test)
    - Look for the red square at map center

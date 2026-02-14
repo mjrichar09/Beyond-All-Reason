@@ -22,6 +22,19 @@ if gadgetHandler:IsSyncedCode() then
 	return false
 end
 
+-- Debug: Verify weather_utils loads
+do
+	local result = pcall(function()
+		return VFS.Include('common/weather_utils.lua')
+	end)
+	if not result then
+		Spring.Echo("[ERROR] Failed to load weather_utils.lua!")
+		return false
+	else
+		Spring.Echo("[OK] weather_utils.lua loaded successfully")
+	end
+end
+
 local weatherUtils = VFS.Include('common/weather_utils.lua')
 
 ---============================================================================
@@ -247,6 +260,11 @@ end
 local frameCounter = 0
 function gadget:GameFrame(frameNum)
 	frameCounter = frameCounter + 1
+	
+	-- Debug: Verify gadget is being called
+	if frameNum == 1 or frameNum == 30 or frameNum == 60 then
+		Spring.Echo("[GADGET ALIVE] GameFrame called at frame " .. frameNum)
+	end
 	
 	-- Update weather info periodically
 	if frameCounter % CONFIG.UPDATE_INTERVAL == 0 then

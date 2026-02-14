@@ -36,10 +36,10 @@ local weatherUtils = VFS.Include('common/weather_utils.lua')
 local CONFIG = {
 	GAME_SPEED = 30,              -- Default game speed (frames per second)
 	MIN_INTERVAL = 120,           -- Minimum seconds between weather events
-	MAX_INTERVAL = 900,           -- Maximum seconds between weather events (15 minutes)
-	INITIAL_DELAY = 10,           -- Initial delay at game start (10 seconds)
+	MAX_INTERVAL = 3,           -- Maximum seconds between weather events (15 minutes)
+	INITIAL_DELAY = 2,           -- Initial delay at game start (10 seconds)
 	UPDATE_INTERVAL = 10,         -- Check for weather trigger every N frames
-	DEBUG = false,                -- Log weather transitions
+	DEBUG = true,                -- Log weather transitions
 }
 
 ---============================================================================

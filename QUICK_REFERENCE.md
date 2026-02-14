@@ -7,8 +7,8 @@
 3. Change `MIN_INTERVAL = 120` to `MIN_INTERVAL = 3`
 4. Change `DEBUG = false` to `DEBUG = true`
 5. Save and start game
-6. Open console (Ctrl+Enter)
-7. Look for `[Weather System]` and `[Weather Visuals]` messages
+6. Open chat (press **Enter**) and look for `[Weather System]` and `[Weather Visuals]` messages
+7. Run commands with `/` prefix (e.g., `/setgamerule weather_current heavy_rain`)
 
 ---
 
