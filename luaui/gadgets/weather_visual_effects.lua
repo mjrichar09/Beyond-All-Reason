@@ -119,6 +119,16 @@ local function UpdateWeatherInfo()
 		visualState.activeParticles = {}
 		visualState.weatherStartFrame = Spring.GetGameFrame()
 		Spring.Echo("[Weather Visuals] Weather changed to: " .. newWeather)
+		
+		-- Spawn CEG effects at camera position for new weather
+		if newWeather ~= "clear_skies" then
+			local cegEffect = GetWeatherCEGPath(newWeather)
+			if cegEffect then
+				local x, y, z = Spring.GetCameraPosition()
+				Spring.SpawnCEG(cegEffect, x, y, z)
+				Spring.Echo("[Weather Visuals] Spawned CEG effect: " .. cegEffect)
+			end
+		end
 	end
 	
 	visualState.currentWeather = newWeather
@@ -148,15 +158,15 @@ end
 
 --- Get CEG (Custom Emitter Group) file path for weather type
 local function GetWeatherCEGPath(weatherType)
-	local cegPaths = {
-		light_rain = "projectiles/weather/light_rain.lua",
-		heavy_rain = "projectiles/weather/heavy_rain.lua",
-		fog = "projectiles/weather/fog.lua",
-		dust_storm = "projectiles/weather/dust_storm.lua",
-		wind_gust = "projectiles/weather/wind_gust.lua",
+	local cegMapping = {
+		light_rain = "mistycloud",
+		heavy_rain = "mistycloudpurplemist",
+		fog = "fogdirty",
+		dust_storm = "sandstorm",
+		wind_gust = "mistycloudpurple",
 		clear_skies = nil,
 	}
-	return cegPaths[weatherType]
+	return cegMapping[weatherType]
 end
 
 --- Apply visual overlay (fog, color tint, etc)
@@ -255,16 +265,17 @@ end
 
 function gadget:Initialize()
 	Spring.Echo("[Weather Visuals] Client-side weather visualization initialized")
+	
+	-- Debug: Check if we can read game rules params
+	local weather = Spring.GetGameRulesParam("weather_current")
+	local intensity = Spring.GetGameRulesParam("weather_intensity")
+	Spring.Echo("[Weather Visuals] Initial weather from game rules: " .. tostring(weather) .. 
+		" | intensity: " .. tostring(intensity))
 end
 
 local frameCounter = 0
 function gadget:GameFrame(frameNum)
 	frameCounter = frameCounter + 1
-	
-	-- Debug: Verify gadget is being called
-	if frameNum == 1 or frameNum == 30 or frameNum == 60 then
-		Spring.Echo("[GADGET ALIVE] GameFrame called at frame " .. frameNum)
-	end
 	
 	-- Update weather info periodically
 	if frameCounter % CONFIG.UPDATE_INTERVAL == 0 then
@@ -278,6 +289,15 @@ function gadget:GameFrame(frameNum)
 		Spring.Echo("[Weather Visuals] Weather: " .. visualState.currentWeather .. 
 			" | Intensity: " .. string.format("%.2f", visualState.weatherIntensity) ..
 			" | Particles: " .. #visualState.activeParticles .. "/" .. visualState.particleCount)
+		
+		-- Spawn continuous CEG effects for active weather
+		if visualState.currentWeather ~= "clear_skies" and visualState.weatherIntensity > 0 then
+			local cegEffect = GetWeatherCEGPath(visualState.currentWeather)
+			if cegEffect then
+				local x, y, z = Spring.GetCameraPosition()
+				Spring.SpawnCEG(cegEffect, x, y, z)
+			end
+		end
 	end
 	
 	-- Debug: Log every frame if we have particles

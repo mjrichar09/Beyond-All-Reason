@@ -268,7 +268,8 @@ function weatherUtils.SetCurrentWeather(weatherType, intensity)
 		return false
 	end
 	
-	intensity = math.clamp(intensity or 0.5, 0, 1)
+	intensity = intensity or 0.5
+	intensity = math.max(0, math.min(1, intensity))  -- Clamp to [0, 1]
 	Spring.SetGameRulesParam("weather_current", weatherType)
 	Spring.SetGameRulesParam("weather_intensity", intensity)
 	Spring.SetGameRulesParam("weather_frame", Spring.GetGameFrame())
