@@ -139,6 +139,9 @@ end
 local function UpdateWeatherVisuals()
 	local weatherData = weatherUtils.GetWeatherData(visualState.currentWeather)
 	if not weatherData or not weatherData.visual then
+		if CONFIG.DEBUG then
+			Spring.Echo("[Weather Visuals DEBUG] UpdateWeatherVisuals: No visual data for " .. visualState.currentWeather)
+		end
 		return
 	end
 	
@@ -151,8 +154,18 @@ local function UpdateWeatherVisuals()
 			visual.particleIntensity * visualState.weatherIntensity * CONFIG.MAX_PARTICLES
 		)
 		visualState.particleCount = math.min(particleCount, CONFIG.MAX_PARTICLES)
+		if CONFIG.DEBUG then
+			Spring.Echo("[Weather Visuals DEBUG] UpdateWeatherVisuals: " .. visualState.currentWeather ..
+				" particleIntensity=" .. visual.particleIntensity .. 
+				" weatherIntensity=" .. string.format("%.2f", visualState.weatherIntensity) ..
+				" calculated=" .. particleCount .. 
+				" final=" .. visualState.particleCount)
+		end
 	else
 		visualState.particleCount = 0
+		if CONFIG.DEBUG then
+			Spring.Echo("[Weather Visuals DEBUG] UpdateWeatherVisuals: " .. visualState.currentWeather .. " has no particles")
+		end
 	end
 end
 
@@ -229,7 +242,7 @@ local function GenerateWeatherParticles()
 		local particleToAdd = math.ceil(visualState.particleCount / 5)  -- Add 1/5 per spawn instead of 1/10
 		
 		if CONFIG.DEBUG and framesSinceStart % 10 == 0 then
-			Spring.Echo("[Weather Visuals DEBUG] Spawning " .. particleToAdd .. " particles (frame " .. framesSinceStart .. ")")
+			Spring.Echo("[Weather Visuals DEBUG] Spawning " .. particleToAdd .. " particles (frame " .. framesSinceStart .. ", total=" .. #visualState.activeParticles .. ")")
 		end
 		
 		for i = 1, particleToAdd do
@@ -295,7 +308,15 @@ function gadget:GameFrame(frameNum)
 			local cegEffect = GetWeatherCEGPath(visualState.currentWeather)
 			if cegEffect then
 				local x, y, z = Spring.GetCameraPosition()
+				if CONFIG.DEBUG and frameCounter % 30 == 0 then
+					Spring.Echo("[Weather Visuals DEBUG] Attempting to spawn CEG: " .. cegEffect .. 
+						" at camera pos (" .. math.floor(x) .. ", " .. math.floor(y) .. ", " .. math.floor(z) .. ")")
+				end
 				Spring.SpawnCEG(cegEffect, x, y, z)
+			else
+				if CONFIG.DEBUG then
+					Spring.Echo("[Weather Visuals DEBUG] No CEG mapping for weather: " .. visualState.currentWeather)
+				end
 			end
 		end
 	end
@@ -311,13 +332,17 @@ end
 --- Draw UI information about current weather (screen-space overlay)
 function gadget:DrawScreen()
 	if CONFIG.DEBUG then
-		Spring.Echo("[Weather Visuals DEBUG] DrawScreen called")
+		Spring.Echo("[Weather Visuals DrawScreen DEBUG] Called. Overlay A=" .. tostring(visualState.overlay.a))
 	end
 	
 	-- Draw weather overlay if there's an active effect
 	if visualState.overlay and visualState.overlay.a > 0 then
 		if CONFIG.DEBUG then
-			Spring.Echo("[Weather Visuals DEBUG] Drawing overlay: A=" .. visualState.overlay.a)
+			Spring.Echo("[Weather Visuals DEBUG] Drawing overlay: RGBA(" .. 
+				string.format("%.2f", visualState.overlay.r) .. ", " ..
+				string.format("%.2f", visualState.overlay.g) .. ", " ..
+				string.format("%.2f", visualState.overlay.b) .. ", " ..
+				string.format("%.2f", visualState.overlay.a) .. ")")
 		end
 		
 		gl.Color(
@@ -345,11 +370,20 @@ function gadget:DrawWorld()
 		Spring.Echo("[Weather Visuals DEBUG] DrawWorld called. Weather=" .. visualState.currentWeather .. " Particles=" .. #visualState.activeParticles)
 	end
 	
-	if visualState.currentWeather == "clear_skies" or #visualState.activeParticles == 0 then
-		if CONFIG.DEBUG and #visualState.activeParticles > 0 then
-			Spring.Echo("[Weather Visuals DEBUG] Not drawing: clear_skies or no particles")
-		end
-		return
+	-- TEST: Draw a red square at map center to verify rendering works
+	if CONFIG.DEBUG then
+		gl.PushMatrix()
+		gl.Translate(Game.mapSizeX / 2, 0, Game.mapSizeZ / 2)
+		gl.Color(1, 0, 0, 0.7)  -- Red
+		gl.Begin(gl.QUADS)
+		gl.Vertex(-100, 0, -100)
+		gl.Vertex(100, 0, -100)
+		gl.Vertex(100, 0, 100)
+		gl.Vertex(-100, 0, 100)
+		gl.End()
+		gl.PopMatrix()
+		gl.Color(1, 1, 1, 1)  -- Reset
+		Spring.Echo("[Weather Visuals TEST] Drew red square at map center")
 	end
 	
 	if CONFIG.DEBUG then

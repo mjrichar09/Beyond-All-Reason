@@ -35,11 +35,11 @@ local weatherUtils = VFS.Include('common/weather_utils.lua')
 
 local CONFIG = {
 	GAME_SPEED = 30,              -- Default game speed (frames per second)
-	MIN_INTERVAL = 5,           -- Minimum seconds between weather events (2 minutes)
-	MAX_INTERVAL = 20,           -- Maximum seconds between weather events (15 minutes)
-	INITIAL_DELAY = 2,           -- Initial delay at game start (10 seconds)
+	MIN_INTERVAL = 3,             -- Minimum seconds between weather events (3 for testing)
+	MAX_INTERVAL = 5,             -- Maximum seconds between weather events (5 for testing)
+	INITIAL_DELAY = 2,            -- Initial delay at game start (2 for testing)
 	UPDATE_INTERVAL = 10,         -- Check for weather trigger every N frames
-	DEBUG = true,                -- Log weather transitions
+	DEBUG = true,                 -- Log weather transitions
 }
 
 ---============================================================================
@@ -139,6 +139,15 @@ local function TriggerWeatherEvent()
 	
 	-- Also manually set game rules params for redundancy/compatibility
 	Spring.SetGameRulesParam("weather_frame", currentFrame)
+	
+	-- Verify that game rules params were set
+	local verifyWeather = Spring.GetGameRulesParam("weather_current")
+	local verifyIntensity = Spring.GetGameRulesParam("weather_intensity")
+	
+	Spring.Echo("[Weather System VERIFY] Set: " .. newWeather .. " (" .. 
+		string.format("%.2f", weatherState.eventData.weatherIntensity) .. 
+		") | Read back: " .. tostring(verifyWeather) .. " (" .. 
+		string.format("%.2f", verifyIntensity or 0) .. ")")
 	
 	local logMsg = "[Weather System] Event triggered: " .. newWeather .. 
 		" (Intensity: " .. string.format("%.2f", weatherState.eventData.weatherIntensity) .. 
