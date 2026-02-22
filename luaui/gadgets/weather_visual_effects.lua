@@ -17,10 +17,16 @@ function gadget:GetInfo()
 	}
 end
 
+-- Debug module-level init
+Spring.Echo("[Weather Visual Effects INIT] Gadget file starting to load...")
+
 -- Only run unsynced code for client-side visuals
 if gadgetHandler:IsSyncedCode() then
+	Spring.Echo("[Weather Visual Effects INIT] Returning false - is synced code")
 	return false
 end
+
+Spring.Echo("[Weather Visual Effects INIT] Passed synced code check, loading weather_utils...")
 
 -- Debug: Verify weather_utils loads
 do
@@ -36,6 +42,11 @@ do
 end
 
 local weatherUtils = VFS.Include('common/weather_utils.lua')
+if not weatherUtils then
+	Spring.Echo("[ERROR] weather_utils is nil after include!")
+	return false
+end
+Spring.Echo("[Weather Visual Effects INIT] weatherUtils loaded successfully as table")
 
 ---============================================================================
 --- Configuration
@@ -298,10 +309,12 @@ function gadget:GameFrame(frameNum)
 		ApplyWeatherOverlay()
 		GenerateWeatherParticles()
 		
-		-- Debug logging
-		Spring.Echo("[Weather Visuals] Weather: " .. visualState.currentWeather .. 
-			" | Intensity: " .. string.format("%.2f", visualState.weatherIntensity) ..
-			" | Particles: " .. #visualState.activeParticles .. "/" .. visualState.particleCount)
+		-- Debug logging - only every 30 frames to reduce spam
+		if frameCounter % 30 == 0 then
+			Spring.Echo("[Weather Visuals] Weather: " .. visualState.currentWeather .. 
+				" | Intensity: " .. string.format("%.2f", visualState.weatherIntensity) ..
+				" | Particles: " .. #visualState.activeParticles .. "/" .. visualState.particleCount)
+		end
 		
 		-- Spawn continuous CEG effects for active weather
 		if visualState.currentWeather ~= "clear_skies" and visualState.weatherIntensity > 0 then
@@ -331,13 +344,9 @@ end
 
 --- Draw UI information about current weather (screen-space overlay)
 function gadget:DrawScreen()
-	if CONFIG.DEBUG then
-		Spring.Echo("[Weather Visuals DrawScreen DEBUG] Called. Overlay A=" .. tostring(visualState.overlay.a))
-	end
-	
 	-- Draw weather overlay if there's an active effect
 	if visualState.overlay and visualState.overlay.a > 0 then
-		if CONFIG.DEBUG then
+		if CONFIG.DEBUG and frameCounter % 30 == 0 then
 			Spring.Echo("[Weather Visuals DEBUG] Drawing overlay: RGBA(" .. 
 				string.format("%.2f", visualState.overlay.r) .. ", " ..
 				string.format("%.2f", visualState.overlay.g) .. ", " ..
@@ -366,10 +375,6 @@ end
 
 --- Draw world-space effects (particles)
 function gadget:DrawWorld()
-	if CONFIG.DEBUG then
-		Spring.Echo("[Weather Visuals DEBUG] DrawWorld called. Weather=" .. visualState.currentWeather .. " Particles=" .. #visualState.activeParticles)
-	end
-	
 	-- TEST: Draw a red square at map center to verify rendering works
 	if CONFIG.DEBUG then
 		gl.PushMatrix()
@@ -383,11 +388,11 @@ function gadget:DrawWorld()
 		gl.End()
 		gl.PopMatrix()
 		gl.Color(1, 1, 1, 1)  -- Reset
-		Spring.Echo("[Weather Visuals TEST] Drew red square at map center")
-	end
-	
-	if CONFIG.DEBUG then
-		Spring.Echo("[Weather Visuals DEBUG] Drawing " .. #visualState.activeParticles .. " particles")
+		
+		-- Only echo debug message every 30 frames to reduce spam
+		if frameCounter % 30 == 0 then
+			Spring.Echo("[Weather Visuals TEST] Drew red square at map center. Particles: " .. #visualState.activeParticles)
+		end
 	end
 	
 	-- Enable additive blending for particles
