@@ -18,21 +18,38 @@ function gadget:GetInfo()
 end
 
 -- Debug module-level init
-Spring.Echo("[Weather Visual Effects] Gadget loading...")
+Spring.Echo("[Weather Visual Effects PARSE] Gadget file starting to parse...")
 
 -- Only run unsynced code for client-side visuals
 if gadgetHandler:IsSyncedCode() then
-	-- Synced code doesn't need anything - just exit gracefully
-	function gadget:Shutdown()
-	end
-	return true
+	Spring.Echo("[Weather Visual Effects PARSE] Returning false - is synced code")
+	return false
 end
 
--- Everything below is UNSYNCED CODE ONLY
-Spring.Echo("[Weather Visual Effects] Initializing unsynced visual effects...")
+Spring.Echo("[Weather Visual Effects PARSE] Passed synced code check")
 
--- Load weather utilities (error handling only, no early returns)
-local weatherUtils = VFS.Include('common/weather_utils.lua')
+Spring.Echo("[Weather Visual Effects PARSE] Passed synced code check")
+
+-- Debug: Verify weather_utils loads
+local weatherUtils
+do
+	local success, result = pcall(function()
+		return VFS.Include('common/weather_utils.lua')
+	end)
+	if not success then
+		Spring.Echo("[ERROR] Failed to load weather_utils.lua! Error: " .. tostring(result))
+		return false
+	else
+		weatherUtils = result
+		Spring.Echo("[OK] weather_utils.lua loaded successfully")
+	end
+end
+
+if not weatherUtils then
+	Spring.Echo("[ERROR] weather_utils is nil after include!")
+	return false
+end
+Spring.Echo("[Weather Visual Effects PARSE] weatherUtils loaded successfully as table")
 
 ---============================================================================
 --- Configuration
