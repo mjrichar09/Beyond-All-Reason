@@ -234,3 +234,4 @@ end
 function gadget:Shutdown()
 	Spring.Echo("[Weather] System shutting down")
 end
+return true

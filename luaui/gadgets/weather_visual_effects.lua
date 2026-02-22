@@ -426,3 +426,4 @@ end
 function gadget:Shutdown()
 	Spring.Echo("[Weather Visuals] Client-side weather visualization shutting down")
 end
+return true

@@ -319,3 +319,4 @@ end
 function gadget:Shutdown()
 	Spring.Echo("[Weather Effects] Synced weather gameplay effects shutting down")
 end
+return true
