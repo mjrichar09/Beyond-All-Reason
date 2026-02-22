@@ -18,15 +18,16 @@ function gadget:GetInfo()
 end
 
 -- Debug module-level init
-Spring.Echo("[Weather Visual Effects INIT] Gadget file starting to load...")
+Spring.Echo("[Weather Visual Effects PARSE] Gadget file starting to parse...")
 
 -- Only run unsynced code for client-side visuals
-if gadgetHandler:IsSyncedCode() then
-	Spring.Echo("[Weather Visual Effects INIT] Returning false - is synced code")
-	return false
-end
+-- NOTE: Commenting out early return to see if gadget gets discovered
+-- if gadgetHandler and gadgetHandler:IsSyncedCode() then
+-- 	Spring.Echo("[Weather Visual Effects PARSE] Returning false - is synced code")
+-- 	return false
+-- end
 
-Spring.Echo("[Weather Visual Effects INIT] Passed synced code check, loading weather_utils...")
+Spring.Echo("[Weather Visual Effects PARSE] Passed synced code check")
 
 -- Debug: Verify weather_utils loads
 do
@@ -46,7 +47,7 @@ if not weatherUtils then
 	Spring.Echo("[ERROR] weather_utils is nil after include!")
 	return false
 end
-Spring.Echo("[Weather Visual Effects INIT] weatherUtils loaded successfully as table")
+Spring.Echo("[Weather Visual Effects PARSE] weatherUtils loaded successfully as table")
 
 ---============================================================================
 --- Configuration
