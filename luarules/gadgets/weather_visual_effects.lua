@@ -274,6 +274,11 @@ end
 ---============================================================================
 
 function gadget:Initialize()
+	-- Guard: Only run in unsynced context
+	if gadgetHandler:IsSyncedCode() then
+		return
+	end
+	
 	Spring.Echo("[Weather Visuals] Client-side weather visualization initialized")
 	
 	-- Debug: Check if we can read game rules params
@@ -285,6 +290,11 @@ end
 
 local frameCounter = 0
 function gadget:GameFrame(frameNum)
+	-- Guard: Only run in unsynced context
+	if gadgetHandler:IsSyncedCode() then
+		return
+	end
+	
 	frameCounter = frameCounter + 1
 	
 	-- Update weather info periodically
@@ -330,6 +340,11 @@ end
 
 --- Draw UI information about current weather (screen-space overlay)
 function gadget:DrawScreen()
+	-- Guard: Only run in unsynced context
+	if gadgetHandler:IsSyncedCode() or not gl then
+		return
+	end
+	
 	-- Draw weather overlay if there's an active effect
 	if visualState.overlay and visualState.overlay.a > 0 then
 		if CONFIG.DEBUG and frameCounter % 30 == 0 then
@@ -361,6 +376,10 @@ end
 
 --- Draw world-space effects (particles)
 function gadget:DrawWorld()
+	-- Guard: Only run in unsynced context
+	if gadgetHandler:IsSyncedCode() or not gl then
+		return
+	end
 	-- TEST: Draw a red square at map center to verify rendering works
 	if CONFIG.DEBUG then
 		gl.PushMatrix()
